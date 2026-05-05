@@ -1,0 +1,66 @@
+// Настройка генератора Prisma Client 
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+// Подключение к PostgreSQL 
+datasource db {
+  provider = "postgresql"
+}
+
+// Модель пользователя (таблица users)
+model User {
+  id          String       @id @default(uuid())           // Уникальный ID пользователя
+  supabaseId  String       @unique @map("supabase_id")    // ID из Supabase
+  email       String       @unique
+  name        String?
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  
+  messages    Message[]      // Связь "один ко многим"
+  roomMembers RoomMember[]
+  
+  @@map("users")
+}
+
+// Модель сообщения (таблица messages)
+model Message {
+  id        String   @id @default(uuid())
+  content   String
+  senderId  String   @map("sender_id")
+  roomId    String   @map("room_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)  // Внешний ключ к  User
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)    // Внешний ключ к Room
+  
+  @@index([roomId])     // Быстрый поиск по комнате
+  @@index([senderId])   // Поиск по отправителю
+  @@map("messages")
+}
+
+// Модель комнаты чата (таблица rooms)
+model Room {
+  id        String       @id @default(uuid())
+  name      String       @unique
+  createdAt DateTime     @default(now()) @map("created_at")
+  
+  messages    Message[]
+  roomMembers RoomMember[]
+  
+  @@map("rooms")
+}
+
+// Модель членства в комнате (таблица room_members), связь многие ко многим
+model RoomMember {
+  userId    String   @map("user_id")
+  roomId    String   @map("room_id")
+  joinedAt  DateTime @default(now()) @map("joined_at")
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  
+  @@id([userId, roomId])     // Первичный ключ (пользователь и комната)
+  @@map("room_members")
+}
